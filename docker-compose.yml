@@ -1,0 +1,64 @@
+volumes:
+  data_db:
+
+services:
+    # Webserver
+    nginx:
+        image: nginx:stable-alpine
+        build: ./docker/nginx
+        container_name: ${APP_NAME}_nginx
+        depends_on:
+            - php
+        ports:
+            - 8080:80
+        volumes:
+            - ./src:/var/www/html
+        networks:
+            - educa_network
+
+    # PHP
+    php:
+        build: ./docker/php
+        container_name: ${APP_NAME}_php
+        depends_on:
+            - mysql
+        ports:
+            - 9000:9000
+        volumes:
+            - ./src:/var/www/html
+        networks:
+            - educa_network
+
+    # Database
+    mysql:
+        image: mysql:8.0.27
+        build: ./docker/mysql
+        container_name: ${APP_NAME}_mysql
+        ports:
+            - 3306:3306
+        volumes:
+            - data_db:/var/lib/mysql
+        environment:
+            MYSQL_DATABASE: ${MYSQL_DATABASE}
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+            # MYSQL_USER: ${MYSQL_USER}
+            # MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+        networks:
+            - educa_network
+    
+    # PhpMyAdmin
+    phpmyadmin:
+        image: phpmyadmin
+        container_name: ${APP_NAME}_pma
+        ports:
+            - 8090:80
+        environment:
+            PMA_HOST: mysql
+        depends_on:
+            - mysql
+        networks:
+            - educa_network
+  
+networks:
+    educa_network:
+        driver: bridge
