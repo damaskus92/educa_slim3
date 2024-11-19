@@ -1,5 +1,6 @@
 <?php
 
+use Medoo\Medoo;
 use Slim\App;
 
 return function (App $app) {
@@ -18,5 +19,16 @@ return function (App $app) {
         $logger->pushProcessor(new \Monolog\Processor\UidProcessor());
         $logger->pushHandler(new \Monolog\Handler\StreamHandler($settings['path'], $settings['level']));
         return $logger;
+    };
+
+    // database
+    $container['db'] = function ($c) {
+        return new Medoo([
+            'database_type' => 'mysql',
+            'server' => 'mysql',
+            'database_name' => 'educa_db',
+            'username' => 'root',
+            'password' => 'secret'
+        ]);
     };
 };
