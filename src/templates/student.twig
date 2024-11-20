@@ -1,9 +1,213 @@
 {% extends "layouts/base.html" %}
 
 {% block title %}
-    Students
+Data Siswa
 {% endblock %}
 
 {% block content %}
-    <h1>Students</h1>
+<h1>Data Siswa</h1>
+
+<!-- Button trigger modal -->
+<button type="button" class="btn btn-success my-2" id="newDataButton" href="javascript:void(0)">
+    Tambah data
+</button>
+
+<table id="dataTable" class="table table-striped" style="width:100%">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>ID Sekolah</th>
+            <th>Nama</th>
+            <th>Email</th>
+        </tr>
+    </thead>
+    <tfoot>
+        <tr>
+            <th>ID</th>
+            <th>ID Sekolah</th>
+            <th>Nama</th>
+            <th>Email</th>
+        </tr>
+    </tfoot>
+</table>
+
+<!-- Modal -->
+<div class="modal fade" id="ajaxModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="addSchoolModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fs-5" id="modalTitle"></h5>
+            </div>
+            <div class="modal-body">
+                <form id="modalForm" name="modalForm">
+                    <input type="hidden" id="dataID" name="dataID">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Nama</label>
+                        <input type="text" class="form-control" id="name" name="name" value="" required="">
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" value="" required="">
+                    </div>
+                    <div class="mb-3">
+                        <label for="schoolID" class="form-label">Sekolah</label>
+                        <select class="form-select" id="schoolID" name="school_id">
+                            <option value="">-- Pilih Sekolah --</option>
+                            {% for school in schools %}
+                            <option value="{{ school.id }}">{{ school.school_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" id="modalFormSubmit" class="btn btn-primary" value="">Simpan</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    $(function () {
+        var table = $('#dataTable').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: "{{ path_for('api.students') }}",
+            columns: [
+                { data: 0, name: 'id' },
+                { data: 1, name: 'school_id' },
+                { data: 2, name: 'name' },
+                { data: 3, name: 'email' },
+                {
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    render: function (data, type, row, meta) {
+                        return '<button type="button" id="editDataButton" class="btn btn-outline-secondary" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;" data-id="' + row[0] + '"><i class="bi bi-pencil-fill"/></button>';
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    render: function (data, type, row, meta) {
+                        return '<button type="button" id="deleteDataButton" class="btn btn-outline-danger" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;" data-id="' + row[0] + '"><i class="bi bi-trash3-fill"/></button>';
+                    }
+                }
+            ]
+        });
+
+        $('#newDataButton').on('click', function (e) {
+            $('#modalForm').trigger('reset');
+            $('#modalTitle').html('Tambah data siswa');
+            $('#modalFormSubmit').val('store');
+            $('#ajaxModal').modal('show');
+        });
+
+        $('#dataTable tbody').on('click', '#editDataButton', function (e) {
+            const id = $(this).data('id');
+
+            $.ajax({
+                url: "/api/students/" + id,
+                type: "GET",
+                contentType: 'application/json',
+                dataType: 'json',
+            }).done(function (result) {
+                $('#modalTitle').html('Ubah data siswa');
+                $('#modalFormSubmit').val('update');
+                $('#ajaxModal').modal('show');
+
+                $('#dataID').val(result.id);
+                $('#schoolID').val(result.school_id);
+                $('#name').val(result.name);
+                $('#email').val(result.email);
+            });
+        });
+
+        $('#modalFormSubmit').on('click', function (e) {
+            e.preventDefault();
+
+            const method = $(this).val();
+            const data = $('#modalForm').serialize();
+
+            console.log(data);
+
+            Swal.fire({
+                icon: "question",
+                text: (method == 'store') ? "Data akan disimpan. Lanjutkan?" : "Perubahan data akan disimpan. Lanjutkan?",
+                showCancelButton: true,
+                confirmButtonText: "Ya",
+                cancelButtonText: "Tidak",
+                customClass: {
+                    confirmButton: 'order-2',
+                    denyButton: 'order-1',
+                },
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: (method == 'store') ? "/api/students" : "/api/students/" + $('#dataID').val(),
+                        type: (method == 'store') ? "POST" : "PATCH",
+                        data: data,
+                        dataType: 'json',
+                        success: function (result) {
+                            Swal.fire({
+                                icon: "success",
+                                text: result.message,
+                            }).then(() => {
+                                $('#ajaxModal').modal('hide');
+                                table.ajax.reload();
+                            });
+                        },
+                        error: function (result) {
+                            Swal.fire({
+                                icon: "error",
+                                text: result.responseJSON.message,
+                            });
+                        }
+                    });
+                };
+            });
+        });
+
+        $('#dataTable tbody').on('click', '#deleteDataButton', table, function (e) {
+            const data = table.row($(this).parents('tr')).data();
+
+            Swal.fire({
+                icon: "question",
+                text: "Yakin untuk menghapus data " + data[1] + "?",
+                showCancelButton: true,
+                confirmButtonText: "Hapus",
+                customClass: {
+                    confirmButton: 'order-2',
+                    denyButton: 'order-1',
+                },
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: "/api/students/" + data[0],
+                        type: "DELETE",
+                        dataType: 'json',
+                        success: function (result) {
+                            Swal.fire({
+                                icon: "success",
+                                text: result.message,
+                            }).then(() => {
+                                table.ajax.reload();
+                            });
+                        },
+                        error: function (result) {
+                            Swal.fire({
+                                icon: "error",
+                                text: result.responseJSON.message,
+                            });
+                        }
+                    });
+                };
+            });
+        });
+    });
+</script>
 {% endblock %}
