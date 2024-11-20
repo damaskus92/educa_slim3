@@ -1,9 +1,198 @@
 {% extends "layouts/base.html" %}
 
 {% block title %}
-    Schools
+Schools
 {% endblock %}
 
 {% block content %}
-    <h1>Schools</h1>
+<h1>Data Sekolah</h1>
+
+<!-- Button trigger modal -->
+<button type="button" class="btn btn-success my-2" id="newDataButton" href="javascript:void(0)">
+    Tambah data
+</button>
+
+<table id="dataTable" class="table table-striped" style="width:100%">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nama Sekolah</th>
+            <th>Alamat</th>
+        </tr>
+    </thead>
+    <tfoot>
+        <tr>
+            <th>ID</th>
+            <th>Nama Sekolah</th>
+            <th>Alamat</th>
+        </tr>
+    </tfoot>
+</table>
+
+<!-- Modal -->
+<div class="modal fade" id="ajaxModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="addSchoolModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fs-5" id="modalTitle"></h5>
+            </div>
+            <div class="modal-body">
+                <form id="modalForm" name="modalForm">
+                    <input type="hidden" id="dataID" name="dataID">
+                    <div class="mb-3">
+                        <label for="schoolName" class="form-label">Nama Sekolah</label>
+                        <input type="text" class="form-control" id="schoolName" name="school_name" value="" required="">
+                    </div>
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Alamat</label>
+                        <textarea class="form-control" id="address" name="address" rows="3" required=""></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" id="modalFormSubmit" class="btn btn-primary" value="">Simpan</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    $(function () {
+        var table = $('#dataTable').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: "{{ path_for('api.schools') }}",
+            columns: [
+                { data: 0, name: 'id' },
+                { data: 1, name: 'school_name' },
+                { data: 2, name: 'address' },
+                {
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    render: function (data, type, row, meta) {
+                        return '<button type="button" id="editDataButton" class="btn btn-outline-secondary" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;" data-id="' + row[0] + '"><i class="bi bi-pencil-fill"/></button>';
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    render: function (data, type, row, meta) {
+                        return '<button type="button" id="deleteDataButton" class="btn btn-outline-danger" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;" data-id="' + row[0] + '"><i class="bi bi-trash3-fill"/></button>';
+                    }
+                }
+            ]
+        });
+
+        $('#newDataButton').on('click', function (e) {
+            $('#modalForm').trigger('reset');
+            $('#modalTitle').html('Tambah data sekolah');
+            $('#modalFormSubmit').val('store');
+            $('#ajaxModal').modal('show');
+        });
+
+        $('#dataTable tbody').on('click', '#editDataButton', function (e) {
+            const id = $(this).data('id');
+
+            $.ajax({
+                url: "/api/schools/" + id,
+                type: "GET",
+                contentType: 'application/json',
+                dataType: 'json',
+            }).done(function (result) {
+                $('#modalTitle').html('Ubah data sekolah');
+                $('#modalFormSubmit').val('update');
+                $('#ajaxModal').modal('show');
+
+                $('#dataID').val(result.id);
+                $('#schoolName').val(result.school_name);
+                $('#address').val(result.address);
+            });
+        });
+
+        $('#modalFormSubmit').on('click', function (e) {
+            e.preventDefault();
+
+            const method = $(this).val();
+            const data = $('#modalForm').serialize();
+
+            Swal.fire({
+                icon: "question",
+                text: (method == 'store') ? "Data akan disimpan. Lanjutkan?" : "Perubahan data akan disimpan. Lanjutkan?",
+                showCancelButton: true,
+                confirmButtonText: "Ya",
+                cancelButtonText: "Tidak",
+                customClass: {
+                    confirmButton: 'order-2',
+                    denyButton: 'order-1',
+                },
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: (method == 'store') ? "/api/schools" : "/api/schools/" + $('#dataID').val(),
+                        type: (method == 'store') ? "POST" : "PATCH",
+                        data: data,
+                        dataType: 'json',
+                        success: function (result) {
+                            Swal.fire({
+                                icon: "success",
+                                text: result.message,
+                            }).then(() => {
+                                $('#ajaxModal').modal('hide');
+                                table.ajax.reload();
+                            });
+                        },
+                        error: function (result) {
+                            Swal.fire({
+                                icon: "error",
+                                text: result.responseJSON.message,
+                            });
+                        }
+                    });
+                };
+            });
+        });
+
+        $('#dataTable tbody').on('click', '#deleteDataButton', table, function (e) {
+            const data = table.row($(this).parents('tr')).data();
+
+            Swal.fire({
+                icon: "question",
+                text: "Yakin untuk menghapus data " + data[1] + "?",
+                showCancelButton: true,
+                confirmButtonText: "Hapus",
+                customClass: {
+                    confirmButton: 'order-2',
+                    denyButton: 'order-1',
+                },
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: "/api/schools/" + data[0],
+                        type: "DELETE",
+                        dataType: 'json',
+                        success: function (result) {
+                            Swal.fire({
+                                icon: "success",
+                                text: result.message,
+                            }).then(() => {
+                                table.ajax.reload();
+                            });
+                        },
+                        error: function (result) {
+                            Swal.fire({
+                                icon: "error",
+                                text: result.responseJSON.message,
+                            });
+                        }
+                    });
+                };
+            });
+        });
+    });
+</script>
 {% endblock %}

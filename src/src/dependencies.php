@@ -43,4 +43,8 @@ return function (App $app) {
 
         return $view;
     };
+
+    $container['flash'] = function () {
+        return new \Slim\Flash\Messages();
+    };
 };
