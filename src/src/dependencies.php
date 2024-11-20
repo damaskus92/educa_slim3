@@ -1,6 +1,5 @@
 <?php
 
-use Medoo\Medoo;
 use Slim\App;
 
 return function (App $app) {
@@ -23,12 +22,25 @@ return function (App $app) {
 
     // database
     $container['db'] = function ($c) {
-        return new Medoo([
+        return new \Medoo\Medoo([
             'database_type' => 'mysql',
             'server' => 'mysql',
             'database_name' => 'educa_db',
             'username' => 'root',
             'password' => 'secret'
         ]);
+    };
+
+    $container['view'] = function ($c) {
+        $view = new \Slim\Views\Twig('../templates', [
+            'cache' => false
+        ]);
+
+        // Instantiate and add Slim specific extension
+        $router = $c->get('router');
+        $uri = \Slim\Http\Uri::createFromEnvironment(new \Slim\Http\Environment($_SERVER));
+        $view->addExtension(new Slim\Views\TwigExtension($router, $uri));
+
+        return $view;
     };
 };
